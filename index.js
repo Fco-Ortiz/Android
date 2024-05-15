@@ -16,9 +16,9 @@ app.get('/peliculas', (req, res) => {
     res.json(peliculas);
 });
 
-app.get('/peliculas/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const pelicula = peliculas.find(p => p.id === id);
+app.get('/peliculas/:titulo', (req, res) => {
+    const titulo = req.params.titulo;
+    const pelicula = peliculas.find(p => p.titulo === titulo);
     if(!peliculas){
         return res.status(404).json({ mensaje: 'Pelicula no encontrada' });
     }
@@ -30,6 +30,17 @@ app.post('/peliculas', (req,res) => {
     const nuevaPelicula = req.body
     peliculas.push(nuevaPelicula);
     res.status(201).json(nuevaPelicula);
+})
+
+//Eliminar con metodo delete
+app.delete('pelicular/:titulo', (req,res) => {
+    const titulo = req.params.titulo;
+    const indice = peliculas.findIndex(p => p.titulo === titulo);
+    if (indice === -1) {
+        return res.status(404).json({ mensaje: 'Película no encontrada' });
+    }
+    peliculas.splice(indice, 1);
+    res.status(200).json({ mensaje: 'Película eliminada correctamente' });
 })
 
 //Iniciar el servidor
