@@ -25,6 +25,13 @@ app.get('/peliculas/:id', (req, res) => {
     res.json(pelicula);
 });
 
+//Agregar con metodo post
+app.post('/peliculas', (req,res) => {
+    const nuevaPelicula = req.body
+    peliculas.push(nuevaPelicula);
+    res.status(201).json(nuevaPelicula);
+})
+
 //Iniciar el servidor
 app.listen(PORT, () => {
     console.log(`Servidor ejecutandose en puerto: ${PORT}`);
