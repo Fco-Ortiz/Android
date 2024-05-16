@@ -12,10 +12,12 @@ let peliculas = [
     { id: 3, titulo: 'Pelicula 3', año: 2024 }
 ]
 
+//Get trayendo todos los datos
 app.get('/peliculas', (req, res) => {
     res.json(peliculas);
 });
 
+//Get por titulo especifico
 app.get('/peliculas/:titulo', (req, res) => {
     const titulo = req.params.titulo;
     const pelicula = peliculas.find(p => p.titulo === titulo);
@@ -32,8 +34,20 @@ app.post('/peliculas', (req,res) => {
     res.status(201).json(nuevaPelicula);
 })
 
+//Editar identificando por titulo
+app.put('/peliculas/:titulo', (req, res) => {
+    const titulo = req.params.titulo;
+    const indice = peliculas.findIndex(p => p.titulo === titulo);
+    if (indice === -1) {
+        return res.status(404).json({ mensaje: 'Película no encontrada' });
+    }
+    const nuevaPelicula = req.body;
+    peliculas[indice] = nuevaPelicula;
+    res.status(200).json({ mensaje: 'Película actualizada correctamente' });
+});
+
 //Eliminar con metodo delete
-app.delete('pelicular/:titulo', (req,res) => {
+app.delete('/peliculas/:titulo', (req,res) => {
     const titulo = req.params.titulo;
     const indice = peliculas.findIndex(p => p.titulo === titulo);
     if (indice === -1) {
