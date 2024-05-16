@@ -1,16 +1,20 @@
 //Configurar express
-const express = require('express');
+const express = require('express'); //Framework para crear la API
+const admin = require('firebase-admin'); //SDK para interactuar con FB
+const serviceAccount = require('D:/UNI/SEMESTRE 10/02.Android/Proyecto/serviceAccountKey.json') //Credenciales FB
+
 const app = express();
-const PORT = 3000;
+app.use(express.json()); //Middleware JSON de express
 
-app.use(express.json());
+const PORT = 3000;  //Puerto definido
 
-//Definir rutas de la API
-let peliculas = [
-    { id: 1, titulo: 'Pelicula 1', año: 2022 },
-    { id: 2, titulo: 'Pelicula 2', año: 2023 },
-    { id: 3, titulo: 'Pelicula 3', año: 2024 }
-]
+//Inicializamos Firebase Admin
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://Proyecto-Android.firebaseio.com'
+})
+
+const db = admin.firestore(); //Inicializamos Firestore
 
 //Get trayendo todos los datos
 app.get('/peliculas', (req, res) => {
@@ -27,11 +31,15 @@ app.get('/peliculas/:titulo', (req, res) => {
     res.json(pelicula);
 });
 
-//Agregar con metodo post
-app.post('/peliculas', (req,res) => {
-    const nuevaPelicula = req.body
-    peliculas.push(nuevaPelicula);
-    res.status(201).json(nuevaPelicula);
+//Agregar (Post -> FireStore)*
+app.post('/peliculas', async (req,res) => {
+    try {
+        const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
+        const docFire = await db.collection('Pelicula').add(pelicula);  //Agregamos la plicula
+        res.status(201).send(`Pelicula agregada: ${docFire.titulo}`);   //Regresamos la pelicula agregada
+    } catch (error) {
+        res.status(400).send(`Error al agregar pelicula: ${error}`) //Manejo de error        
+    }
 })
 
 //Editar identificando por titulo
