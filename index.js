@@ -1,5 +1,5 @@
 //Configurar express
-const express = require('express'); //Framework para crear la API
+const express = require('express'); //Framework para crear la API y manejar las rutas y solicitudes
 const admin = require('firebase-admin'); //SDK para interactuar con FB
 const serviceAccount = require('D:/UNI/SEMESTRE 10/02.Android/Proyecto/serviceAccountKey.json') //Credenciales FB
 
@@ -16,12 +16,22 @@ admin.initializeApp({
 
 const db = admin.firestore(); //Inicializamos Firestore
 
-//Get trayendo todos los datos
-app.get('/peliculas', (req, res) => {
-    res.json(peliculas);
+//Cosultar (GET -> FireStore)*
+app.get('/peliculas', async (req, res) => {
+    try {
+        const snapshot = await db.collection('Pelicula').get();
+        if(snapshot.empty){res.status(404).send('No se encontraron Peliculas'); return;}    //validamos si esta vacia la coleccion
+        let peliculas = [];
+        snapshot.forEach(doc => {
+            peliculas.push({ id: doc.id, ...doc.data() });//Operador de propagacion, sirve para combinar todos los datos
+        })
+        res.status(200).json(peliculas);
+    } catch (error) {
+        res.status(400).send(`Error al consultar peliculas: ${error}`)
+    }
 });
 
-//Get por titulo especifico
+//Get titulo
 app.get('/peliculas/:titulo', (req, res) => {
     const titulo = req.params.titulo;
     const pelicula = peliculas.find(p => p.titulo === titulo);
@@ -42,7 +52,7 @@ app.post('/peliculas', async (req,res) => {
     }
 })
 
-//Editar identificando por titulo
+//Editar
 app.put('/peliculas/:titulo', (req, res) => {
     const titulo = req.params.titulo;
     const indice = peliculas.findIndex(p => p.titulo === titulo);
@@ -54,7 +64,7 @@ app.put('/peliculas/:titulo', (req, res) => {
     res.status(200).json({ mensaje: 'Película actualizada correctamente' });
 });
 
-//Eliminar con metodo delete
+//Eliminar
 app.delete('/peliculas/:titulo', (req,res) => {
     const titulo = req.params.titulo;
     const indice = peliculas.findIndex(p => p.titulo === titulo);
