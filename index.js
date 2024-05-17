@@ -16,6 +16,20 @@ admin.initializeApp({
 
 const db = admin.firestore(); //Inicializamos Firestore
 
+//Agregar (Post -> FireStore)*
+app.post('/peliculas', async (req,res) => {
+    try {
+        const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
+        //Verificamos si ya existe ese titulo
+        const snapshot = await db.collection('Pelicula').where('Titulo2', '==', pelicula.Titulo2).get();
+        if(!snapshot.empty){return res.status(409).send(`Ya exite una pelicula con el titulo: ${pelicula.Titulo1}`)}
+        await db.collection('Pelicula').add(pelicula);  //Agregamos la plicula
+        res.status(201).send(`Pelicula agregada: ${pelicula.Titulo1}`);   //Regresamos la pelicula agregada
+    } catch (error) {
+        res.status(400).send(`Error al agregar pelicula: ${error}`) //Manejo de error        
+    }
+})
+
 //Cosultar (GET -> FireStore)*
 app.get('/peliculas', async (req, res) => {
     try {
@@ -47,17 +61,6 @@ app.get('/peliculas/:Titulo', async (req, res) => {
     }
 });
 
-//Agregar (Post -> FireStore)*
-app.post('/peliculas', async (req,res) => {
-    try {
-        const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
-        const docFire = await db.collection('Pelicula').add(pelicula);  //Agregamos la plicula
-        res.status(201).send(`Pelicula agregada: ${docFire.Titulo1}`);   //Regresamos la pelicula agregada
-    } catch (error) {
-        res.status(400).send(`Error al agregar pelicula: ${error}`) //Manejo de error        
-    }
-})
-
 //Editar (PUT -> FireStore)*
 app.put('/peliculas/:Titulo', async (req, res) => {
     try {
@@ -73,7 +76,7 @@ app.put('/peliculas/:Titulo', async (req, res) => {
     }
 });
 
-//Eliminar
+//Eliminar (DELETE -> FireStore)
 app.delete('/peliculas/:Titulo', async (req,res) => {
     try {
         const titulo = (req.params.Titulo).toLowerCase().replace(/\s+/g, '');//Minusculas y sin espacios
