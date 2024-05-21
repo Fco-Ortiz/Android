@@ -6,7 +6,7 @@ const admin = require('firebase-admin'); //SDK para interactuar con FB
 const app = express();
 app.use(express.json()); //Middleware JSON de express
 
-const PORT = 3000;  //Puerto definido
+const PORT = process.env.PORT || 3000;  //Puerto definido
 
 //Inicializamos Firebase Admin
 admin.initializeApp({
