@@ -2,7 +2,6 @@
 require('dotenv').config(); //Para las variables de entorno
 const express = require('express'); //Framework para crear la API y manejar las rutas y solicitudes
 const admin = require('firebase-admin'); //SDK para interactuar con FB
-const serviceAccount = require('D:/UNI/SEMESTRE 10/02.Android/Proyecto/serviceAccountKey.json') //Credenciales FB
 
 const app = express();
 app.use(express.json()); //Middleware JSON de express
