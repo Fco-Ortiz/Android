@@ -108,8 +108,10 @@ app.post('/peliculas', upload.single('image'), async (req,res) => {
 app.get('/peliculas', async (req, res) => {
     try {
         const snapshot = await db.collection('Pelicula').get();
+        
         if(snapshot.empty)
             {res.status(404).json({ message : 'No se encontraron Peliculas'}); return;}    //validamos si esta vacia la coleccion
+        
         let peliculas = [];
         snapshot.forEach(doc => {
             peliculas.push({ id: doc.id, ...doc.data() });//Operador de propagacion, sirve para combinar todos los datos
@@ -124,9 +126,11 @@ app.get('/peliculas', async (req, res) => {
 app.get('/peliculas/:Titulo', async (req, res) => {
     try {
         const titulo = (req.params.Titulo).toLowerCase().replace(/\s+/g, '');//Minusculas y sin espacios
+        
         const snapshot = await db.collection('Pelicula').where('Titulo2', '==', titulo).get();
         if(snapshot.empty)
             {res.status(404).json({ message : 'No se encontraron Peliculas'}); return;}    //validamos si esta vacia la consulta
+        
         let pelicula = [];
         snapshot.forEach(doc => {
             pelicula.push({ id: doc.id, ...doc.data() });
@@ -152,7 +156,7 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
         const peliculaRef = doc.ref;
         
         // Manejo de la imagen
-        let imageUrl = doc.data().imageUrl; // Mantener la URL de la imagen actual por defecto
+        let imageUrl = doc.data().ImageUrl; // Mantener la URL de la imagen actual por defecto
         if (req.file) {
             // Subir nueva imagen
             const blob = bucket.file(req.file.originalname);
@@ -162,7 +166,7 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
                 },
             });
 
-            await new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {    //esperamos a que argrege la imagen
                 blobStream.on('error', (err) => {
                     reject(new Error(`Error al subir la imagen: ${err.message}`));
                 });
@@ -182,7 +186,7 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
             }
         }
 
-        newData.imageUrl = imageUrl;
+        newData.ImageUrl = imageUrl;
         
         //Actualizar los datos
         await peliculaRef.update(newData);
@@ -196,10 +200,23 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
 app.delete('/peliculas/:Titulo', async (req,res) => {
     try {
         const titulo = (req.params.Titulo).toLowerCase().replace(/\s+/g, '');//Minusculas y sin espacios
+
+        //Buscamos la pelicula por el titulo
         const snapshot = await db.collection('Pelicula').where('Titulo2', '==', titulo).get();
         if(snapshot.empty)
             {res.status(404).json({ message : 'No se encontraron Peliculas'}); return;}   //validamos si esta vacia la consulta
-        await snapshot.docs[0].ref.delete();    //Eliminamos la pelicula
+        
+        const doc = snapshot.docs[0];
+        const peliculaRef = doc.ref;
+
+        // Eliminar la imagen si existe
+        if (doc.data().imageUrl) {
+            const imageToDelete = bucket.file(doc.data().imageUrl.split('/').pop());
+            await imageToDelete.delete();
+        }
+
+        // Eliminar la película
+        await peliculaRef.delete()
         res.status(200).json({ message : `Pelicula: ${titulo}, se elimino correctamente`});
     } catch (error) {
         res.status(500).json({ message : `Error al intentar borrar la pelicula: ${error}`})       
