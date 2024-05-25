@@ -63,36 +63,40 @@ app.post('/peliculas', upload.single('image'), async (req,res) => {
     try {
         const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
         
-        // Manejo de la imagen
-        let imageUrl = '';
-        if (req.file) {
-            const blob = bucket.file(req.file.originalname);
-            const blobStream = blob.createWriteStream({
-                metadata: {
-                    contentType: req.file.mimetype,
-                },
-            });
+        if (!req.file)  //verificar que suba un file
+            {return res.status(400).json({ mesage: 'No se cargó ninguna imagen'})}
 
-            await new Promise((resolve, reject) => {    //await para esperar a que se agregue la imagen
-                blobStream.on('error', (err) => {
-                    reject(new Error(`Error al subir la imagen: ${err.message}`));
-                });
-    
-                blobStream.on('finish', async () => {
-                    imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-                    resolve();
-                });
-    
-                blobStream.end(req.file.buffer);
-            })
-        }
-
-        pelicula.imageUrl = imageUrl;
- 
         //Verificamos si ya existe ese titulo
         const snapshot = await db.collection('Pelicula').where('Titulo2', '==', pelicula.Titulo2).get();
         if(!snapshot.empty)
             {return res.status(409).json({ message : `Ya exite una pelicula con el titulo: ${pelicula.Titulo1}`})}
+
+        // Manejo de la imagen
+        let imageUrl = '';
+        
+        const blob = bucket.file(req.file.originalname);
+        const blobStream = blob.createWriteStream({
+            metadata: {
+                contentType: req.file.mimetype,
+            },
+        });
+
+        await new Promise((resolve, reject) => {    //await para esperar a que se agregue la imagen
+            blobStream.on('error', (err) => {
+                reject(new Error(`Error al subir la imagen: ${err.message}`));
+            });
+
+            blobStream.on('finish', async () => {
+                imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                resolve();
+            });
+
+            blobStream.end(req.file.buffer);
+        })
+
+        pelicula.ImageUrl = imageUrl;
+ 
+        
         await db.collection('Pelicula').add(pelicula);  //Agregamos la plicula
         res.status(201).json({ message : `Pelicula agregada: ${pelicula.Titulo1}`});   //Regresamos la pelicula agregada
     } catch (error) {
@@ -134,15 +138,54 @@ app.get('/peliculas/:Titulo', async (req, res) => {
 });
 
 //Editar (PUT -> FireStore)*
-app.put('/peliculas/:Titulo', async (req, res) => {
+app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
     try {
         const titulo = (req.params.Titulo).toLowerCase().replace(/\s+/g, '');//Minusculas y sin espacios
         const newData = req.body;   //Guardamos los nuevos datos
-        const snapshot = await db.collection('Pelicula').where('Titulo2', '==', titulo).get();  //Contiene los doc que cumplen el criterio
+
+        //Buscamos la pelicula por titulo
+        const snapshot = await db.collection('Pelicula').where('Titulo2', '==', titulo).get();
         if(snapshot.empty)
             {res.status(404).json({ message : 'No se encontro la Pelicula'}); return;}    //validamos si esta vacia la consulta
+        
+        const doc = snapshot.docs[0];
+        const peliculaRef = doc.ref;
+        
+        // Manejo de la imagen
+        let imageUrl = doc.data().imageUrl; // Mantener la URL de la imagen actual por defecto
+        if (req.file) {
+            // Subir nueva imagen
+            const blob = bucket.file(req.file.originalname);
+            const blobStream = blob.createWriteStream({
+                metadata: {
+                    contentType: req.file.mimetype,
+                },
+            });
+
+            await new Promise((resolve, reject) => {
+                blobStream.on('error', (err) => {
+                    reject(new Error(`Error al subir la imagen: ${err.message}`));
+                });
+
+                blobStream.on('finish', () => {
+                    imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    resolve();
+                });
+
+                blobStream.end(req.file.buffer);
+            });
+
+            // Eliminar la imagen antigua si existe una nueva
+            if (doc.data().imageUrl) {
+                const oldImage = bucket.file(doc.data().imageUrl.split('/').pop());
+                await oldImage.delete();
+            }
+        }
+
+        newData.imageUrl = imageUrl;
+        
         //Actualizar los datos
-        await snapshot.docs[0].ref.update(newData); //Docs[0] trae el primer documento de la consulta (siempre debe de haber solo 1)
+        await peliculaRef.update(newData);
         res.status(200).json({ message : `La pelicula "${titulo}", se actualizo`});
     } catch (error) {
         res.status(500).json({ message : `Error al intentar actualizar: ${error}`});
