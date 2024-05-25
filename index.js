@@ -2,11 +2,18 @@
 require('dotenv').config(); //Para las variables de entorno
 const express = require('express'); //Framework para crear la API y manejar las rutas y solicitudes
 const admin = require('firebase-admin'); //SDK para interactuar con FB
+const multer = require('multer'); //Middleware para manejar archivos
+const { Storage } = require('@google-cloud/firestore'); //Firebase Storage
 
 const app = express();
 app.use(express.json()); //Middleware JSON de express
-
 const PORT = process.env.PORT || 3000;  //Puerto definido
+
+//configuramos Multer para manejar archivos
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 } // Limitar el tamaño del archivo a 5MB
+});
 
 //Inicializamos Firebase Admin
 admin.initializeApp({
@@ -15,15 +22,70 @@ admin.initializeApp({
         privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     }),
-    databaseURL: process.env.DATABASE_URL
+    databaseURL: process.env.DATABASE_URL,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET // Agregar el bucket de Storage
 })
 
-const db = admin.firestore(); //Inicializamos Firestore
+const db = admin.firestore();   //Inicializamos Firestore
+const bucket = admin.storage().bucket();    //Inicializamos el bucket de Storage
+
+// Ruta para subir una imagen
+app.post('/upload', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {    //verificamos que no venga vacio
+            return res.status(400).json({ message: 'No se proporcionó ninguna imagen.' });
+        }
+
+        const blob = bucket.file(req.file.originalname);
+        const blobStream = blob.createWriteStream({
+            metadata: {
+                contentType: req.file.mimetype,
+            },
+        });
+
+        blobStream.on('error', (err) => {
+            res.status(500).json({ message: `Error al subir la imagen: ${err.message}` });
+        });
+
+        blobStream.on('finish', async () => {
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+            res.status(200).json({ message: 'Imagen subida correctamente.', url: publicUrl });
+        });
+
+        blobStream.end(req.file.buffer);
+    } catch (error) {
+        res.status(500).json({ message: `Error al procesar la solicitud: ${error.message}` });
+    }
+});
 
 //Agregar (Post -> FireStore)*
-app.post('/peliculas', async (req,res) => {
+app.post('/peliculas', upload.single('image'), async (req,res) => {
     try {
         const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
+        
+        // Manejo de la imagen
+        let imageUrl = '';
+        if (req.file) {
+            const blob = bucket.file(req.file.originalname);
+            const blobStream = blob.createWriteStream({
+                metadata: {
+                    contentType: req.file.mimetype,
+                },
+            });
+
+            blobStream.on('error', (err) => {
+                return res.status(500).json({ message: `Error al subir la imagen: ${err.message}` });
+            });
+
+            blobStream.on('finish', async () => {
+                imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+            });
+
+            blobStream.end(req.file.buffer);
+        }
+
+        pelicula.imageUrl = imageUrl;
+ 
         //Verificamos si ya existe ese titulo
         const snapshot = await db.collection('Pelicula').where('Titulo2', '==', pelicula.Titulo2).get();
         if(!snapshot.empty)
