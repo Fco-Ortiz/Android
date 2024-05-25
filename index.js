@@ -180,7 +180,7 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
             });
 
             // Eliminar la imagen antigua si existe una nueva
-            if (doc.data().imageUrl) {
+            if (doc.data().ImageUrl) {
                 const oldImage = bucket.file(doc.data().imageUrl.split('/').pop());
                 await oldImage.delete();
             }
@@ -210,8 +210,8 @@ app.delete('/peliculas/:Titulo', async (req,res) => {
         const peliculaRef = doc.ref;
 
         // Eliminar la imagen si existe
-        if (doc.data().imageUrl) {
-            const imageToDelete = bucket.file(doc.data().imageUrl.split('/').pop());
+        if (doc.data().ImageUrl) {
+            const imageToDelete = bucket.file(doc.data().ImageUrl.split('/').pop());
             await imageToDelete.delete();
         }
 
