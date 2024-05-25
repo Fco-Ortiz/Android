@@ -181,7 +181,7 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
 
             // Eliminar la imagen antigua si existe una nueva
             if (doc.data().ImageUrl) {
-                const oldImage = bucket.file(doc.data().imageUrl.split('/').pop());
+                const oldImage = bucket.file(doc.data().ImageUrl.split('/').pop());
                 await oldImage.delete();
             }
         }
