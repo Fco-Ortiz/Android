@@ -73,15 +73,18 @@ app.post('/peliculas', upload.single('image'), async (req,res) => {
                 },
             });
 
-            blobStream.on('error', (err) => {
-                return res.status(500).json({ message: `Error al subir la imagen: ${err.message}` });
-            });
-
-            blobStream.on('finish', async () => {
-                imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-            });
-
-            blobStream.end(req.file.buffer);
+            await new Promise((resolve, reject) => {    //await para esperar a que se agregue la imagen
+                blobStream.on('error', (err) => {
+                    reject(new Error(`Error al subir la imagen: ${err.message}`));
+                });
+    
+                blobStream.on('finish', async () => {
+                    imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    resolve();
+                });
+    
+                blobStream.end(req.file.buffer);
+            })
         }
 
         pelicula.imageUrl = imageUrl;
