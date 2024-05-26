@@ -205,7 +205,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
                 });
 
                 imageBlobStream.on('finish', () => {
-                    imageUrl = `gs:///${bucket.name}/${imageBlob.name}`;
+                    imageUrl = `gs://${bucket.name}/${imageBlob.name}`;
                     resolve();
                 });
 
@@ -277,19 +277,13 @@ app.delete('/peliculas/:Titulo', async (req,res) => {
         const peliculaRef = doc.ref;
         const titulo1 = doc.data().Titulo1; //accedemos al titulo principal
 
-        // Eliminar la imagen y el video si existen
-        if (doc.data().ImageUrl) {
-            const imageToDelete = bucket.file(doc.data().ImageUrl).name;
-            await bucket.file(imageToDelete).delete();
-        }
-        if (doc.data().VideoUrl) {
-            const videoToDelete = bucket.file(doc.data().VideoUrl).name;
-            await bucket.file(videoToDelete).delete();
-        }        
+        // Eliminar todos los archivos en la carpeta de la película
+        const [files] = await bucket.getFiles({ prefix: `${titulo1}/` });
+        const deletePromises = files.map(file => file.delete());
+        await Promise.all(deletePromises);
 
-        // Eliminar la carpeta de la pelicula (si existe)
-        const folderToDelete = bucket.file(`${titulo1}/`);
-        await folderToDelete.delete();
+        // Eliminar la película en Firestore
+        await peliculaRef.delete();
 
         // Eliminar la película
         await peliculaRef.delete()
