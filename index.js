@@ -104,7 +104,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
             });
 
             imageBlobStream.on('finish', async () => {
-                pelicula.ImageUrl = `https://storage.googleapis.com/${bucket.name}/${imageBlob.name}`;
+                pelicula.ImageUrl = `gs://${bucket.name}/${imageBlob.name}`;
                 resolve();
             });
 
@@ -118,7 +118,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
             });
 
             videoBlobStream.on('finish', async () => {
-                pelicula.VideoUrl = `https://storage.googleapis.com/${bucket.name}/${videoBlob.name}`;
+                pelicula.VideoUrl = `gs://${bucket.name}/${videoBlob.name}`;
                 resolve();
             });
 
@@ -205,7 +205,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
                 });
 
                 imageBlobStream.on('finish', () => {
-                    imageUrl = `https://storage.googleapis.com/${bucket.name}/${imageBlob.name}`;
+                    imageUrl = `gs:///${bucket.name}/${imageBlob.name}`;
                     resolve();
                 });
 
@@ -214,7 +214,8 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
 
             // Eliminar la imagen antigua si existe una nueva
             if (doc.data().ImageUrl) {
-                const oldImage = bucket.file(doc.data().ImageUrl.split('/').pop());
+                const oldImagePath = doc.data().ImageUrl.split(`${bucket.name}/`)[1];
+                const oldImage = bucket.file(oldImagePath);
                 await oldImage.delete();
             }
         }
@@ -235,7 +236,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
                 });
 
                 videoBlobStream.on('finish', () => {
-                    videoUrl = `https://storage.googleapis.com/${bucket.name}/${videoBlob.name}`;
+                    videoUrl = `gs://${bucket.name}/${videoBlob.name}`;
                     resolve();
                 });
 
@@ -244,7 +245,8 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
 
             // Eliminar el video antiguo si existe uno nuevo
             if (doc.data().VideoUrl) {
-                const oldVideo = bucket.file(doc.data().VideoUrl.split('/').pop());
+                const oldVideoPath = doc.data().VideoUrl.split(`${bucket.name}/`)[1];
+                const oldVideo = bucket.file(oldVideoPath);
                 await oldVideo.delete();
             }
         }
@@ -277,12 +279,12 @@ app.delete('/peliculas/:Titulo', async (req,res) => {
 
         // Eliminar la imagen y el video si existen
         if (doc.data().ImageUrl) {
-            const imageToDelete = bucket.file(doc.data().ImageUrl.split('/').pop());
-            await imageToDelete.delete();
+            const imageToDelete = bucket.file(doc.data().ImageUrl).name;
+            await bucket.file(imageToDelete).delete();
         }
         if (doc.data().VideoUrl) {
-            const videoToDelete = bucket.file(doc.data().VideoUrl.split('/').pop());
-            await videoToDelete.delete();
+            const videoToDelete = bucket.file(doc.data().VideoUrl).name;
+            await bucket.file(videoToDelete).delete();
         }        
 
         // Eliminar la carpeta de la pelicula (si existe)
