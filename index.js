@@ -71,7 +71,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
     try {
         const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
         
-        if (!req.file || !req.files.image || !req.files.video)  //verificar que suba un file
+        if (!req.files || !req.files.image || !req.files.video)  //verificar que suba un file
             {return res.status(400).json({ mesage: 'No se proporciono ninguna imagen o video'})}
 
         //Verificamos si ya existe ese titulo
@@ -81,7 +81,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
 
         // Manejo de la imagen
         const imageFile = req.files.image[0];
-        const imageBlob = bucket.file(`/${pelicula.Titulo1}/${imageFile.originalname}`);
+        const imageBlob = bucket.file(`${pelicula.Titulo1}/${imageFile.originalname}`);
         const imageBlobStream = imageBlob.createWriteStream({
             metadata: {
                 contentType: imageFile.mimetype,
@@ -90,7 +90,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
 
         // Manejo del vieo
         const videoFile = req.files.video[0];
-        const videoBlob = bucket.file(`/${pelicula.Titulo1}/${videoFile.originalname}`);
+        const videoBlob = bucket.file(`${pelicula.Titulo1}/${videoFile.originalname}`);
         const videoBlobStream = videoBlob.createWriteStream({
             metadata: {
                 contentType: videoFile.mimetype,
@@ -108,7 +108,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
                 resolve();
             });
 
-            imageBlobStream.end(req.file.buffer);
+            imageBlobStream.end(imageFile.buffer);
         });
         
         //AGREGAMOS EL VIDEO
