@@ -122,7 +122,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
                 resolve();
             });
 
-            videoBlobStream.end(req.files.video[0].buffer);
+            videoBlobStream.end(videoFile.buffer);
         });
 
         await db.collection('Pelicula').add(pelicula);  //Agregamos la plicula
@@ -170,7 +170,7 @@ app.get('/peliculas/:Titulo', async (req, res) => {
 });
 
 //Editar (PUT -> FireStore)*
-app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
+app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
     try {
         const titulo = (req.params.Titulo).toLowerCase().replace(/\s+/g, '');//Minusculas y sin espacios
         const newData = req.body;   //Guardamos los nuevos datos
@@ -183,28 +183,31 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
         const doc = snapshot.docs[0];
         const peliculaRef = doc.ref;
         
-        // Manejo de la imagen
+        // Manejo de la imagen y el video
         let imageUrl = doc.data().ImageUrl; // Mantener la URL de la imagen actual por defecto
-        if (req.file) {
-            // Subir nueva imagen
-            const blob = bucket.file(req.file.originalname);
-            const blobStream = blob.createWriteStream({
+        let videoUrl = doc.data().VideoUrl; // Mantener la URL del video actual por defecto
+        
+        //verificamos si hay nueva imagen
+        if (req.files['image']) {
+            const imageFile = req.files['image'][0];
+            const imageBlob = bucket.file(`${titulo}/${imageFile.originalname}`);
+            const imageBlobStream = imageBlob.createWriteStream({
                 metadata: {
-                    contentType: req.file.mimetype,
+                    contentType: imageFile.mimetype,
                 },
             });
 
-            await new Promise((resolve, reject) => {    //esperamos a que argrege la imagen
-                blobStream.on('error', (err) => {
+            await new Promise((resolve, reject) => {
+                imageBlobStream.on('error', (err) => {
                     reject(new Error(`Error al subir la imagen: ${err.message}`));
                 });
 
-                blobStream.on('finish', () => {
-                    imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                imageBlobStream.on('finish', () => {
+                    imageUrl = `https://storage.googleapis.com/${bucket.name}/${imageBlob.name}`;
                     resolve();
                 });
 
-                blobStream.end(req.file.buffer);
+                imageBlobStream.end(imageFile.buffer);
             });
 
             // Eliminar la imagen antigua si existe una nueva
@@ -214,8 +217,40 @@ app.put('/peliculas/:Titulo', upload.single('image'), async (req, res) => {
             }
         }
 
+        //verificamos si hay nuevo video
+        if (req.files['video']) {
+            const videoFile = req.files['video'][0];
+            const videoBlob = bucket.file(`${titulo}/${videoFile.originalname}`);
+            const videoBlobStream = videoBlob.createWriteStream({
+                metadata: {
+                    contentType: videoFile.mimetype,
+                },
+            });
+
+            await new Promise((resolve, reject) => {
+                videoBlobStream.on('error', (err) => {
+                    reject(new Error(`Error al subir el video: ${err.message}`));
+                });
+
+                videoBlobStream.on('finish', () => {
+                    videoUrl = `https://storage.googleapis.com/${bucket.name}/${videoBlob.name}`;
+                    resolve();
+                });
+
+                videoBlobStream.end(videoFile.buffer);
+            });
+
+            // Eliminar el video antiguo si existe uno nuevo
+            if (doc.data().VideoUrl) {
+                const oldVideo = bucket.file(doc.data().VideoUrl.split('/').pop());
+                await oldVideo.delete();
+            }
+        }
+
+        //agregamos las direcciones
         newData.ImageUrl = imageUrl;
-        
+        newData.VideoUrl = videoUrl;
+
         //Actualizar los datos
         await peliculaRef.update(newData);
         res.status(200).json({ message : `La pelicula "${titulo}", se actualizo`});
