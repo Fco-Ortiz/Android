@@ -12,7 +12,15 @@ const PORT = process.env.PORT || 3000;  //Puerto definido
 //configuramos Multer para manejar archivos
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 } // Limitar el tamaño del archivo a 5MB
+    limits: { fileSize: 25 * 1024 * 1024 }, // Limitar el tamaño del archivo a 5MB
+    fileFilter: (req, file, cb) => {
+        const allowedMimes = ['image/jpeg', 'image/png', 'video/mp4']; // Permitir formatos de archivo de imagen y video
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Formato de archivo no admitido. Solo se permiten imágenes JPEG/PNG y videos MP4.'));
+        }
+    }
 });
 
 //Inicializamos Firebase Admin
@@ -29,7 +37,7 @@ admin.initializeApp({
 const db = admin.firestore();   //Inicializamos Firestore
 const bucket = admin.storage().bucket();    //Inicializamos el bucket de Storage
 
-// Ruta para subir una imagen
+// Ruta para subir una imagen (Prueba)
 app.post('/upload', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {    //verificamos que no venga vacio
@@ -59,12 +67,12 @@ app.post('/upload', upload.single('image'), async (req, res) => {
 });
 
 //Agregar (Post -> FireStore)*
-app.post('/peliculas', upload.single('image'), async (req,res) => {
+app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'video', maxCount: 1}]), async (req,res) => {
     try {
         const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
         
-        if (!req.file)  //verificar que suba un file
-            {return res.status(400).json({ mesage: 'No se cargó ninguna imagen'})}
+        if (!req.file || !req.files.image || !req.files.video)  //verificar que suba un file
+            {return res.status(400).json({ mesage: 'No se proporciono ninguna imagen o video'})}
 
         //Verificamos si ya existe ese titulo
         const snapshot = await db.collection('Pelicula').where('Titulo2', '==', pelicula.Titulo2).get();
@@ -72,31 +80,51 @@ app.post('/peliculas', upload.single('image'), async (req,res) => {
             {return res.status(409).json({ message : `Ya exite una pelicula con el titulo: ${pelicula.Titulo1}`})}
 
         // Manejo de la imagen
-        let imageUrl = '';
-        
-        const blob = bucket.file(req.file.originalname);
-        const blobStream = blob.createWriteStream({
+        const imageFile = req.files.image[0];
+        const imageBlob = bucket.file(`/${pelicula.Titulo1}/${imageFile.originalname}`);
+        const imageBlobStream = imageBlob.createWriteStream({
             metadata: {
-                contentType: req.file.mimetype,
+                contentType: imageFile.mimetype,
             },
         });
 
-        await new Promise((resolve, reject) => {    //await para esperar a que se agregue la imagen
-            blobStream.on('error', (err) => {
+        // Manejo del vieo
+        const videoFile = req.files.video[0];
+        const videoBlob = bucket.file(`/${pelicula.Titulo1}/${videoFile.originalname}`);
+        const videoBlobStream = videoBlob.createWriteStream({
+            metadata: {
+                contentType: videoFile.mimetype,
+            },
+        });
+
+        //AGREGAMOS LA IMAGEN
+        await new Promise((resolve, reject) => {
+            imageBlobStream.on('error', (err) => {
                 reject(new Error(`Error al subir la imagen: ${err.message}`));
             });
 
-            blobStream.on('finish', async () => {
-                imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+            imageBlobStream.on('finish', async () => {
+                pelicula.ImageUrl = `https://storage.googleapis.com/${bucket.name}/${imageBlob.name}`;
                 resolve();
             });
 
-            blobStream.end(req.file.buffer);
-        })
-
-        pelicula.ImageUrl = imageUrl;
- 
+            imageBlobStream.end(req.file.buffer);
+        });
         
+        //AGREGAMOS EL VIDEO
+        await new Promise((resolve, reject) => {
+            videoBlobStream.on('error', (err) => {
+                reject(new Error(`Error al subir el video: ${err.message}`));
+            });
+
+            videoBlobStream.on('finish', async () => {
+                pelicula.VideoUrl = `https://storage.googleapis.com/${bucket.name}/${videoBlob.name}`;
+                resolve();
+            });
+
+            videoBlobStream.end(req.files.video[0].buffer);
+        });
+
         await db.collection('Pelicula').add(pelicula);  //Agregamos la plicula
         res.status(201).json({ message : `Pelicula agregada: ${pelicula.Titulo1}`});   //Regresamos la pelicula agregada
     } catch (error) {
