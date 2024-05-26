@@ -182,6 +182,8 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
         
         const doc = snapshot.docs[0];
         const peliculaRef = doc.ref;
+
+        const titulo1 = doc.data().Titulo1; //accedemos al titulo principal
         
         // Manejo de la imagen y el video
         let imageUrl = doc.data().ImageUrl; // Mantener la URL de la imagen actual por defecto
@@ -190,7 +192,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
         //verificamos si hay nueva imagen
         if (req.files['image']) {
             const imageFile = req.files['image'][0];
-            const imageBlob = bucket.file(`${titulo}/${imageFile.originalname}`);
+            const imageBlob = bucket.file(`${titulo1}/${imageFile.originalname}`);
             const imageBlobStream = imageBlob.createWriteStream({
                 metadata: {
                     contentType: imageFile.mimetype,
@@ -220,7 +222,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
         //verificamos si hay nuevo video
         if (req.files['video']) {
             const videoFile = req.files['video'][0];
-            const videoBlob = bucket.file(`${titulo}/${videoFile.originalname}`);
+            const videoBlob = bucket.file(`${titulo1}/${videoFile.originalname}`);
             const videoBlobStream = videoBlob.createWriteStream({
                 metadata: {
                     contentType: videoFile.mimetype,
@@ -253,7 +255,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
 
         //Actualizar los datos
         await peliculaRef.update(newData);
-        res.status(200).json({ message : `La pelicula "${titulo}", se actualizo`});
+        res.status(200).json({ message : `La pelicula "${titulo1}", se actualizo`});
     } catch (error) {
         res.status(500).json({ message : `Error al intentar actualizar: ${error}`});
     }
@@ -271,16 +273,25 @@ app.delete('/peliculas/:Titulo', async (req,res) => {
         
         const doc = snapshot.docs[0];
         const peliculaRef = doc.ref;
+        const titulo1 = doc.data().Titulo1; //accedemos al titulo principal
 
-        // Eliminar la imagen si existe
+        // Eliminar la imagen y el video si existen
         if (doc.data().ImageUrl) {
             const imageToDelete = bucket.file(doc.data().ImageUrl.split('/').pop());
             await imageToDelete.delete();
         }
+        if (doc.data().VideoUrl) {
+            const videoToDelete = bucket.file(doc.data().VideoUrl.split('/').pop());
+            await videoToDelete.delete();
+        }        
+
+        // Eliminar la carpeta de la pelicula (si existe)
+        const folderToDelete = bucket.file(`${titulo1}/`);
+        await folderToDelete.delete();
 
         // Eliminar la película
         await peliculaRef.delete()
-        res.status(200).json({ message : `Pelicula: ${titulo}, se elimino correctamente`});
+        res.status(200).json({ message : `Pelicula: ${titulo1}, se elimino correctamente`});
     } catch (error) {
         res.status(500).json({ message : `Error al intentar borrar la pelicula: ${error}`})       
     }
