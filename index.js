@@ -104,7 +104,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
             });
 
             imageBlobStream.on('finish', async () => {
-                pelicula.ImageUrl = `gs://${bucket.name}/${imageBlob.name}`;
+                pelicula.ImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(imageBlob.name)}?alt=media`;
                 resolve();
             });
 
@@ -118,7 +118,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
             });
 
             videoBlobStream.on('finish', async () => {
-                pelicula.VideoUrl = `gs://${bucket.name}/${videoBlob.name}`;
+                pelicula.VideoUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(videoBlob.name)}?alt=media`;
                 resolve();
             });
 
@@ -205,7 +205,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
                 });
 
                 imageBlobStream.on('finish', () => {
-                    imageUrl = `gs://${bucket.name}/${imageBlob.name}`;
+                    imageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(imageBlob.name)}?alt=media`;
                     resolve();
                 });
 
@@ -236,7 +236,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
                 });
 
                 videoBlobStream.on('finish', () => {
-                    videoUrl = `gs://${bucket.name}/${videoBlob.name}`;
+                    videoUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(videoBlob.name)}?alt=media`;
                     resolve();
                 });
 
@@ -285,8 +285,6 @@ app.delete('/peliculas/:Titulo', async (req,res) => {
         // Eliminar la película en Firestore
         await peliculaRef.delete();
 
-        // Eliminar la película
-        await peliculaRef.delete()
         res.status(200).json({ message : `Pelicula: ${titulo1}, se elimino correctamente`});
     } catch (error) {
         res.status(500).json({ message : `Error al intentar borrar la pelicula: ${error}`})       
