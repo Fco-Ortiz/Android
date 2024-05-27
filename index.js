@@ -214,7 +214,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
 
             // Eliminar la imagen antigua si existe una nueva
             if (doc.data().ImageUrl) {
-                const oldImagePath = doc.data().ImageUrl.split(`${bucket.name}/`)[1];
+                const oldImagePath = decodeURIComponent(doc.data().ImageUrl.split(`${bucket.name}/o/`)[1].split('?alt=media')[0]);
                 const oldImage = bucket.file(oldImagePath);
                 await oldImage.delete();
             }
@@ -245,7 +245,7 @@ app.put('/peliculas/:Titulo', upload.fields([{ name: 'image', maxCount: 1 }, { n
 
             // Eliminar el video antiguo si existe uno nuevo
             if (doc.data().VideoUrl) {
-                const oldVideoPath = doc.data().VideoUrl.split(`${bucket.name}/`)[1];
+                const oldVideoPath = decodeURIComponent(doc.data().VideoUrl.split(`${bucket.name}/o/`)[1].split('?alt=media')[0]);
                 const oldVideo = bucket.file(oldVideoPath);
                 await oldVideo.delete();
             }
