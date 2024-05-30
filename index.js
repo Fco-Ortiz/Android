@@ -15,6 +15,7 @@ const upload = multer({
     limits: { fileSize: 25 * 1024 * 1024 }, // Limitar el tamaño del archivo a 5MB
     fileFilter: (req, file, cb) => {
         const allowedMimes = ['image/jpeg', 'image/png', 'video/mp4']; // Permitir formatos de archivo de imagen y video
+        console.log(`Evaluando archivo: ${file.originalname} con tipo MIME: ${file.mimetype}`);
         if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
         } else {
@@ -71,8 +72,14 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
     try {
         const pelicula = req.body;  //Obtenemos los datos del cuerpo del json
         
+        console.log('Archivos recibidos:', req.files);
+
         if (!req.files || !req.files.image || !req.files.video)  //verificar que suba un file
             {return res.status(400).json({ mesage: 'No se proporciono ninguna imagen o video'})}
+
+
+        console.log('Imagen recibida:', req.files.image[0]);
+        console.log('Video recibido:', req.files.video[0]);
 
         //Verificamos si ya existe ese titulo
         const snapshot = await db.collection('Pelicula').where('Titulo2', '==', pelicula.Titulo2).get();
