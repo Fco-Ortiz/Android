@@ -4,10 +4,56 @@ const express = require('express'); //Framework para crear la API y manejar las 
 const admin = require('firebase-admin'); //SDK para interactuar con FB
 const multer = require('multer'); //Middleware para manejar archivos
 const { Storage } = require('@google-cloud/firestore'); //Firebase Storage
+const jwt = require('jsonwebtoken'); // Para manejar los tokens JWT
+const jwksClient = require('jwks-rsa'); // Para obtener la clave pública de Firebase
 
 const app = express();
 app.use(express.json()); //Middleware JSON de express
 const PORT = process.env.PORT || 3000;  //Puerto definido
+
+// Middleware para verificar el token JWT
+async function verificarToken(req, res, next) {
+    const token = await req.headers['authorization'];
+
+    //verificamos si hay token
+    if (!token) {
+        console.log("Token no proporcionado.");
+        return res.status(403).json({ mensaje: 'Token no proporcionado.' });
+    }
+
+    try{
+        // Quitar el prefijo 'Bearer ' si está presente
+        const tokenSinBearer = token.startsWith('Bearer ') ? token.slice(7, token.length) : token;
+        console.log("Token recibido:", tokenSinBearer);
+
+        // Obtener el ID de la clave de la cabecera del token JWT
+        const kid = await jwt.decode(tokenSinBearer, { complete: true }).header.kid;
+
+        // Obtener la clave pública de Firebase para verificar el token
+        client.getSigningKey(kid, (err, key) => { 
+            if (err) {
+                console.error('Error al obtener la clave pública:', err);
+                return res.status(500).json({ mensaje: 'Error interno del servidor.' });
+            }
+
+            // Verificar el token usando la clave pública
+            jwt.verify(tokenSinBearer, key.getPublicKey(), (err, decoded) => {
+                if (err) {
+                    console.error("Error en el token:", err.message);
+                    return res.status(401).json({ mensaje: 'Token invalido'});
+                }
+
+                req.userId = decoded.id;
+                console.log("User Id: ", req.userId);
+                next();
+            });
+        });
+    }
+    catch(error){
+        console.error("Error al verificar el token:", error);
+        res.status(401).json({ mensaje: 'Token inválido.' });    
+    }
+}
 
 //configuramos Multer para manejar archivos
 const upload = multer({
@@ -140,7 +186,7 @@ app.post('/peliculas', upload.fields([{ name: 'image', maxCount: 1}, {name: 'vid
 })
 
 //Cosultar (GET -> FireStore)*
-app.get('/peliculas', async (req, res) => {
+app.get('/peliculas', verificarToken, async (req, res) => {
     try {
         const snapshot = await db.collection('Pelicula').get();
         
