@@ -11,6 +11,11 @@ const app = express();
 app.use(express.json()); //Middleware JSON de express
 const PORT = process.env.PORT || 3000;  //Puerto definido
 
+// Crear un cliente JWKS (JSON Web Key Set) para obtener la clave pública de Firebase
+const client = jwksClient({
+    jwksUri: 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
+  });
+
 // Middleware para verificar el token JWT
 async function verificarToken(req, res, next) {
     const token = await req.headers['authorization'];
